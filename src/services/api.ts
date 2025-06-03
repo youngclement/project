@@ -3,7 +3,7 @@ import { AuthResponse, NonceResponse } from "../types/auth";
 import bs58 from "bs58";
 
 // Replace with your actual API URL
-const API_URL = "http://localhost:8080/api/v1";
+const API_URL = "https://purrfect-chaos-production.up.railway.app/api/v1";
 
 const api = axios.create({
   baseURL: API_URL,
