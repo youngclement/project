@@ -10,6 +10,7 @@ export function useWallet() {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
   // Check if Phantom is installed and user is already connected
   useEffect(() => {
@@ -18,17 +19,18 @@ export function useWallet() {
         // Check if user is already authenticated via localStorage
         const savedWalletAddress = localStorage.getItem('wallet_address');
         const savedToken = localStorage.getItem('access_token');
-        
+
         if (savedWalletAddress && savedToken) {
           setWalletAddress(savedWalletAddress);
           setIsAuthenticated(true);
           setIsConnected(true);
+          setAccessToken(savedToken);
           return;
         }
 
         // Check if Phantom is installed
         const { solana } = window as Window;
-        
+
         if (!solana?.isPhantom) {
           console.log('Phantom wallet not installed');
           return;
@@ -57,26 +59,26 @@ export function useWallet() {
   const connect = useCallback(async () => {
     try {
       setIsConnecting(true);
-      
+
       const { solana } = window as Window;
-      
+
       if (!solana) {
         toast.error('Phantom wallet not found! Please install it from https://phantom.app/');
         return null;
       }
-      
+
       if (!solana.isPhantom) {
         toast.error('Please install Phantom wallet from https://phantom.app/');
         return null;
       }
-      
+
       const response = await solana.connect();
       const address = response.publicKey.toString();
       console.log('Connected with Public Key:', address);
-      
+
       setWalletAddress(address);
       setIsConnected(true);
-      
+
       toast.success('Wallet connected!');
       return address;
     } catch (error: any) {
@@ -97,41 +99,42 @@ export function useWallet() {
 
     try {
       setIsAuthenticating(true);
-      
+
       // Get nonce from server
       const nonce = await authService.getNonce(walletAddress);
       console.log('Received nonce:', nonce);
-      
+
       // Sign the nonce with Phantom wallet
       const { solana } = window as Window;
-      
+
       if (!solana) {
         toast.error('Phantom wallet not found');
         return false;
       }
-      
+
       // Create the message to sign
       const message = new TextEncoder().encode(nonce);
-      
+
       // Request signature from Phantom
       const { signature } = await solana.signMessage(message, 'utf8');
       console.log('Generated signature:', signature);
-      
+
       // Verify signature with server
       try {
         const authResponse = await authService.verifySignature(walletAddress, signature);
         console.log('Auth response:', authResponse);
-        
+
         if (!authResponse || !authResponse.access_token || !authResponse.refresh_token) {
           throw new Error('Invalid authentication response');
         }
-        
+
         // Save tokens
         localStorage.setItem('access_token', authResponse.access_token);
         localStorage.setItem('refresh_token', authResponse.refresh_token);
         localStorage.setItem('wallet_address', walletAddress);
-        
+
         setIsAuthenticated(true);
+        setAccessToken(authResponse.access_token);
         toast.success('Authentication successful!');
         return true;
       } catch (verifyError) {
@@ -152,20 +155,21 @@ export function useWallet() {
   const disconnect = useCallback(async () => {
     try {
       const { solana } = window as Window;
-      
+
       if (solana) {
         await solana.disconnect();
       }
-      
+
       setWalletAddress(null);
       setIsAuthenticated(false);
       setIsConnected(false);
-      
+      setAccessToken(null);
+
       // Clear local storage
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
       localStorage.removeItem('wallet_address');
-      
+
       toast.success('Disconnected');
     } catch (error) {
       console.error('Error disconnecting wallet:', error);
@@ -179,6 +183,7 @@ export function useWallet() {
     isAuthenticating,
     isAuthenticated,
     isConnected,
+    accessToken,
     connect,
     authenticate,
     disconnect
